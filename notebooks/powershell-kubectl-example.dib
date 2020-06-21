@@ -1,0 +1,179 @@
+#!markdown
+
+# Troubleshooting a Kubernetes cluster
+
+## Prereqs
+
+* [Visual Studio Code Insiders](https://code.visualstudio.com/insiders/)
+* [.NET Interactive Notebooks extension](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.dotnet-interactive-vscode)
+
+Since this article is about Kubernetes, you should also have a Kubernetes cluster and `kubectl` available.
+
+### Install `powershell-yaml`
+
+We're also going to install this PowerShell for working with YAML. It is solely used to mutate the YAML example. You don't need this in the wild... but it helps!
+
+What's nice is that we can simply install it with a code cell like so:
+
+#!powershell
+
+Install-Module -Name powershell-yaml -Force
+
+#!markdown
+
+## Now the "demo"...
+
+The rest of this article comes straight from [this markdown file](https://github.com/kubernetes/website/blob/master/content/en/docs/tasks/debug-application-cluster/debug-application-introspection.md) that I've converted into a Notebook by taking the code blocks and turning them into Notebook code cells.
+
+## Using `kubectl describe pod` to fetch details about pods
+
+For this example we'll use a Deployment to create two pods.
+
+> application/nginx-with-request.yaml
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 80
+```
+
+Create deployment by running following command:
+
+#!powershell
+
+kubectl apply -f 'https://k8s.io/examples/application/nginx-with-request.yaml'
+
+#!markdown
+
+Check pod status by following command:
+
+#!powershell
+
+kubectl get pods
+
+#!markdown
+
+We can retrieve a lot more information about each of these pods using `kubectl describe pod`. For example:
+
+#!powershell
+
+# Get the Pod name
+$result = kubectl get pods -o json | ConvertFrom-Json
+$podName = $result.items[0].metadata.name
+
+# could have also done: $podname = kubectl get pods -o=jsonpath='{.items[0].metadata.name}'
+
+kubectl describe pod $podName
+
+#!markdown
+
+Here you can see configuration information about the container(s) and Pod (labels, resource requirements, etc.), as well as status information about the container(s) and Pod (state, readiness, restart count, events, etc.).
+
+The container state is one of Waiting, Running, or Terminated. Depending on the state, additional information will be provided -- here you can see that for a container in Running state, the system tells you when the container started.
+
+Ready tells you whether the container passed its last readiness probe. (In this case, the container does not have a readiness probe configured; the container is assumed to be ready if no readiness probe is configured.)
+
+Restart Count tells you how many times the container has been restarted; this information can be useful for detecting crash loops in containers that are configured with a restart policy of 'always.'
+
+Currently the only Condition associated with a Pod is the binary Ready condition, which indicates that the pod is able to service requests and should be added to the load balancing pools of all matching services.
+
+Lastly, you see a log of recent events related to your Pod. The system compresses multiple identical events by indicating the first and last time it was seen and the number of times it was seen. "From" indicates the component that is logging the event, "SubobjectPath" tells you which object (e.g. container within the pod) is being referred to, and "Reason" and "Message" tell you what happened.
+
+## Example: debugging Pending Pods
+
+A common scenario that you can detect using events is when you've created a Pod that won't fit on any node. For example, the Pod might request more resources than are free on any node, or it might specify a label selector that doesn't match any nodes. Let's say we created the previous Deployment with 5 replicas (instead of 2) and requesting 600 millicores instead of 500, on a four-node cluster where each (virtual) machine has 1 CPU. In that case one of the Pods will not be able to schedule. (Note that because of the cluster addon pods such as fluentd, skydns, etc., that run on each node, if we requested 1000 millicores then none of the Pods would be able to schedule.)
+
+Let's modify the above example to make this happen...
+
+#!powershell
+
+# Make changes to YAML
+$yaml = Invoke-RestMethod https://k8s.io/examples/application/nginx-with-request.yaml | ConvertFrom-Yaml
+$yaml.spec.replicas = 5
+
+# NOTE: for my Docker for Mac setup, 2000m is what it took to get some Pending.
+$yaml.spec.template.spec.containers[0].resources.limits.cpu = "2000m"
+
+# Apply those
+$yaml | ConvertTo-Yaml | kubectl apply -f -
+
+#!markdown
+
+Ok let's see how our pods are doing...
+
+#!powershell
+
+kubectl get pods
+
+#!markdown
+
+To find out why all of the pods are not running, we can use `kubectl describe pod` on a "pending" Pod and look at its events:
+
+#!powershell
+
+# This just grabs the first 'Pending' pod's name
+$podName = kubectl get pods --field-selector status.phase=Pending -o=jsonpath='{.items[0].metadata.name}'
+
+kubectl describe pod $podName
+
+#!markdown
+
+Here you can see the event generated by the scheduler saying that the Pod failed to schedule for reason `FailedScheduling` (and possibly others).  The message tells us that there were not enough resources for the Pod on any of the nodes.
+
+To correct this situation, you can use `kubectl scale` to update your Deployment to specify four or fewer replicas. (Or you could just leave the one Pod pending, which is harmless.)
+
+Events such as the ones you saw at the end of `kubectl describe pod` are persisted in etcd and provide high-level information on what is happening in the cluster. To list all events you can use:
+
+#!powershell
+
+kubectl get events --field-selector reason=FailedScheduling
+
+#!markdown
+
+but you have to remember that events are namespaced. This means that if you're interested in events for some namespaced object (e.g. what happened with Pods in namespace `my-namespace`) you need to explicitly provide a namespace to the command:
+
+#!powershell
+
+kubectl get events --namespace=my-namespace
+
+#!markdown
+
+To see events from all namespaces, you can use the `--all-namespaces` argument.
+
+In addition to `kubectl describe pod`, another way to get extra information about a pod (beyond what is provided by `kubectl get pod`) is to pass the `-o yaml` output format flag to `kubectl get pod`. This will give you, in YAML format, even more information than `kubectl describe pod`--essentially all of the information the system has about the Pod. Here you will see things like annotations (which are key-value metadata without the label restrictions, that is used internally by Kubernetes system components), restart policy, ports, and volumes.
+
+#!powershell
+
+kubectl get pod $podName -o yaml
+
+#!markdown
+
+## The end
+
+The rest of the document requires spinning up multiple nodes that I don't need to to right now 😅 I think what I've shown so far should prove my point.
+
+## Example repo
+
+Here's an example repo of a bunch of Notebooks _and_ a Dockerfile that works on MyBinder (a free sandbox envirnment for you to play in) and locally!
+
+https://github.com/TylerLeonhardt/JupyterNotebooks

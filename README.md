@@ -1,8 +1,8 @@
-# JupyterNotebooks-Template
+# Manning Kubernetes Notebooks Talk
 
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/TylerLeonhardt/Manning-Kubernetes-Notebooks/master?urlpath=lab)
 
-This repo holds .NET Interactive notebooks.
+All the resources from my talk.
 
 ## Tools included in the Dockerfile
 
@@ -33,3 +33,18 @@ Click on the badge at the top of the README.
 5. Navigate in your browser to the URL in your terminal (it looks like this: `http://127.0.0.1:8888/?token=23bad32792cb5415b9566ce42ac23739a6f8a105d931f564`)
 
 At this point, you should be in Jupyter Lab. It's running within a container. You can modify any of the files in the UI and the changes will be reflected to your host OS so that you can commit changes to your own git repo or something like that.
+
+## Links from the slides
+
+* .NET Interactive – https://github.com/dotnet/interactive
+* Editors
+  * Jupyter Lab - https://github.com/jupyterlab/jupyterlab#getting-started
+  * Visual Studio Code Insiders - https://code.visualstudio.com/insiders/
+    * .NET Interactive Notebooks extension: https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.dotnet-interactive-vscode
+  * Azure Data Studio Insiders - https://github.com/microsoft/azuredatastudio#try-out-the-latest-insiders-build-from-main
+  * nteract - https://nteract.io/
+* Sample Notebooks repo – https://github.com/TylerLeonhardt/JupyterNotebooks
+* Sample DIBs repo – https://github.com/TylerLeonhardt/dotnet-interactive-books
+* K8s docs and guides used in this talk
+  * https://github.com/feiskyer/kubernetes-handbook/blob/master/en/troubleshooting/index.md
+  * https://github.com/kubernetes/website/blob/master/content/en/docs/tasks/debug-application-cluster/debug-application-introspection.md
