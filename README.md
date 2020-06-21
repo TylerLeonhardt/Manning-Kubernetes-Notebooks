@@ -1,6 +1,6 @@
 # JupyterNotebooks-Template
 
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/TylerLeonhardt/Manning-Kubernetes-Notebooks-Talk/master?urlpath=lab)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/TylerLeonhardt/Manning-Kubernetes-Notebooks/master?urlpath=lab)
 
 This repo holds .NET Interactive notebooks.
 
