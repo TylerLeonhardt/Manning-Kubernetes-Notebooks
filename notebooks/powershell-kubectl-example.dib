@@ -23,7 +23,7 @@ Install-Module -Name powershell-yaml -Force
 
 ## Now the "demo"...
 
-The rest of this article comes straight from [this markdown file](https://github.com/kubernetes/website/blob/master/content/en/docs/tasks/debug-application-cluster/debug-application-introspection.md) that I've converted into a Notebook by taking the code blocks and turning them into Notebook code cells.
+The rest of this article comes straight from [this markdown file](https://kubernetes.io/docs/tasks/debug-application-cluster/debug-application-introspection/) that I've converted into a Notebook by taking the code blocks and turning them into Notebook code cells.
 
 ## Using `kubectl describe pod` to fetch details about pods
 

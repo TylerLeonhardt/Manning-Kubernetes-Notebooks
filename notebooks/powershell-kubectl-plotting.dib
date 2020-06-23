@@ -1,0 +1,91 @@
+#!markdown
+
+# Plotting data from `kubectl`
+
+By leveraging .NET Interactive's support for Plotly plotting, we have the ability to create rich graphs from `kubectl` outputs.
+
+The first example gives us a quick sanity check of how our cluster is operating. It uses `kubectl get componentstatus` and looks at the result's conditions and plots it on a Pie Chart.
+
+First, let's get the data and group it.
+
+#!powershell
+
+$compontentStatus = kubectl get componentstatus -o json | ConvertFrom-Json
+$groupedData = $compontentStatus.items.conditions.status | Group-Object
+
+#!markdown
+
+Next we can create a Pie Graph and plot it on a Chart:
+
+#!powershell
+
+$trace = [Graph.Pie]@{
+    name = "kubectl get componentstatus"
+    labels = [string[]]@($groupedData.Name)
+    values = [int[]]($groupedData | % Count)
+}
+
+New-PlotlyChart -Title "componentstatus: healthy" -Trace $trace | Out-Display
+
+#!markdown
+
+It's a very simple example, but if it's all blue, we are good to go.
+
+## Looking at `kubectl` events
+
+In this next example, we will get all of the events sorted by when they came in and then plot them in a few different ways.
+
+First, let's get the data:
+
+#!powershell
+
+$logs = kubectl get events --all-namespaces --sort-by=.metadata.creationTimestamp -o json | ConvertFrom-Json -AsHashtable
+
+#!markdown
+
+Now let's plot the data on a Histogram where we group them based on the event type.
+
+#!powershell
+
+$entryByType = [Graph.Histogram]@{
+    name = "Event type"
+    x = $logs.items.type
+}
+
+$entryByType | New-PlotlyChart -Title "Events per type" | Out-Display
+
+#!markdown
+
+Reusing that same data, let's also see the number of events over time. This time, we'll use C# as our plotting language, but we'll grab the variable from PowerShell that has the logs in it.
+
+First, let's put what we want to use in C# in a variable and we'll specify that it is a string array:
+
+#!powershell
+
+$creationTimestamps = [string[]]$logs.items.metadata.creationTimestamp
+
+#!markdown
+
+From here, we can use the `#!share` magic command to grab the variable from the PowerShell session and use it in C# code.
+
+(You might do this if you're more familiar with C#)
+
+#!csharp
+
+#!share --from pwsh creationTimestamps
+
+using XPlot.Plotly;
+
+var eventsOverTime = new Graph.Histogram
+{
+    x = creationTimestamps,
+    name = "Events",
+    marker = new Graph.Marker
+    {
+        color = "coral"
+    }
+};
+
+var chart = Chart.Plot(new [] {eventsOverTime});
+chart.WithTitle("Kubernetes events over time");
+display(chart);
