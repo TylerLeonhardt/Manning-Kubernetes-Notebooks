@@ -40,6 +40,7 @@ First, let's get the data:
 #!powershell
 
 $logs = kubectl get events --all-namespaces --sort-by=.metadata.creationTimestamp -o json | ConvertFrom-Json -AsHashtable
+$logs.items.Count
 
 #!markdown
 
